@@ -1,0 +1,5 @@
+DOMAIN = "pypowerwall"
+CONF_HOST = "host"
+CONF_PORT = "port"
+DEFAULT_PORT = 8675
+SCAN_INTERVAL = 30

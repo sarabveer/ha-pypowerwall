@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to PyPowerwall Proxy",
+        "description": "Enter the host and port of your running pypowerwall proxy server.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the pypowerwall proxy. Verify the host/port and that the proxy is running."
+    },
+    "abort": {
+      "already_configured": "This pypowerwall proxy is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "solar_power": {"name": "Solar Power"},
+      "battery_power": {"name": "Battery Power"},
+      "grid_power": {"name": "Grid Power"},
+      "home_power": {"name": "Home Power"},
+      "battery_level": {"name": "Battery Level"},
+      "grid_voltage": {"name": "Grid Voltage"},
+      "grid_frequency": {"name": "Grid Frequency"}
+    },
+    "binary_sensor": {
+      "grid_connected": {"name": "Grid Connected"}
+    }
+  }
+}
