@@ -30,18 +30,24 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
         self._base_url = f"http://{host}:{port}"
+        _LOGGER.debug("PyPowerwallCoordinator initialised, base_url=%s", self._base_url)
 
     async def _async_update_data(self) -> dict[str, Any]:
-        # Requests are sequential — pypowerwall proxy is single-threaded
-        # and force_close=True avoids reusing stale connections
+        _LOGGER.debug("Starting data refresh from %s", self._base_url)
         connector = aiohttp.TCPConnector(force_close=True)
         try:
             async with aiohttp.ClientSession(connector=connector) as session:
                 aggregates = await self._get(session, "/api/meters/aggregates")
+                _LOGGER.debug("aggregates OK: %s", aggregates)
                 soe = await self._get(session, "/api/system_status/soe")
+                _LOGGER.debug("soe OK: %s", soe)
                 grid_status = await self._get(session, "/api/grid_status")
-        except aiohttp.ClientError as err:
-            raise UpdateFailed(f"Error communicating with pypowerwall proxy: {err}") from err
+                _LOGGER.debug("grid_status OK: %s", grid_status)
+        except UpdateFailed:
+            raise
+        except Exception as err:
+            _LOGGER.exception("Unexpected error fetching pypowerwall data")
+            raise UpdateFailed(f"Unexpected error: {err}") from err
 
         return {
             "aggregates": aggregates,
@@ -50,9 +56,18 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
     async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
-        async with session.get(
-            f"{self._base_url}{path}",
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.json(content_type=None)
+        url = f"{self._base_url}{path}"
+        _LOGGER.debug("GET %s", url)
+        try:
+            async with session.get(
+                url,
+                headers={"Connection": "close"},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                _LOGGER.debug("Response %s: status=%s", url, resp.status)
+                resp.raise_for_status()
+                data = await resp.json(content_type=None)
+                return data
+        except aiohttp.ClientError as err:
+            _LOGGER.error("ClientError on GET %s: %s (%s)", url, err, type(err).__name__)
+            raise UpdateFailed(f"Error communicating with pypowerwall proxy: {err}") from err
