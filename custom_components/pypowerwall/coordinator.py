@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -21,7 +20,6 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(
         self,
         hass: HomeAssistant,
-        session: aiohttp.ClientSession,
         host: str,
         port: int,
     ) -> None:
@@ -31,16 +29,17 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
-        self._session = session
         self._base_url = f"http://{host}:{port}"
 
     async def _async_update_data(self) -> dict[str, Any]:
+        # Requests are sequential — pypowerwall proxy is single-threaded
+        # and force_close=True avoids reusing stale connections
+        connector = aiohttp.TCPConnector(force_close=True)
         try:
-            aggregates, soe, grid_status = await asyncio.gather(
-                self._get("/api/meters/aggregates"),
-                self._get("/api/system_status/soe"),
-                self._get("/api/grid_status"),
-            )
+            async with aiohttp.ClientSession(connector=connector) as session:
+                aggregates = await self._get(session, "/api/meters/aggregates")
+                soe = await self._get(session, "/api/system_status/soe")
+                grid_status = await self._get(session, "/api/grid_status")
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Error communicating with pypowerwall proxy: {err}") from err
 
@@ -50,7 +49,10 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "grid_status": grid_status,
         }
 
-    async def _get(self, path: str) -> Any:
-        async with self._session.get(f"{self._base_url}{path}", timeout=aiohttp.ClientTimeout(total=10)) as resp:
+    async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
+        async with session.get(
+            f"{self._base_url}{path}",
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
             resp.raise_for_status()
-            return await resp.json()
+            return await resp.json(content_type=None)
