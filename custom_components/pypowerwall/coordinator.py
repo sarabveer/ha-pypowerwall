@@ -17,12 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator that polls the pypowerwall proxy."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        host: str,
-        port: int,
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, host: str, port: int) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -37,23 +32,19 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         connector = aiohttp.TCPConnector(force_close=True)
         try:
             async with aiohttp.ClientSession(connector=connector) as session:
+                # /json gives power, soe, and grid_status in one shot
+                data = await self._get(session, "/json")
+                _LOGGER.debug("/json OK: %s", data)
+                # /api/meters/aggregates gives voltage and frequency
                 aggregates = await self._get(session, "/api/meters/aggregates")
-                _LOGGER.debug("aggregates OK: %s", aggregates)
-                soe = await self._get(session, "/api/system_status/soe")
-                _LOGGER.debug("soe OK: %s", soe)
-                grid_status = await self._get(session, "/api/grid_status")
-                _LOGGER.debug("grid_status OK: %s", grid_status)
+                _LOGGER.debug("/api/meters/aggregates OK")
         except UpdateFailed:
             raise
         except Exception as err:
             _LOGGER.exception("Unexpected error fetching pypowerwall data")
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
-        return {
-            "aggregates": aggregates,
-            "soe": soe,
-            "grid_status": grid_status,
-        }
+        return {"json": data, "aggregates": aggregates}
 
     async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
         url = f"{self._base_url}{path}"
@@ -66,8 +57,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ) as resp:
                 _LOGGER.debug("Response %s: status=%s", url, resp.status)
                 resp.raise_for_status()
-                data = await resp.json(content_type=None)
-                return data
+                return await resp.json(content_type=None)
         except aiohttp.ClientError as err:
             _LOGGER.error("ClientError on GET %s: %s (%s)", url, err, type(err).__name__)
             raise UpdateFailed(f"Error communicating with pypowerwall proxy: {err}") from err

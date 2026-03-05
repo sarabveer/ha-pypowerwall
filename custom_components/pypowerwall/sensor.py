@@ -33,7 +33,7 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:solar-power",
-        value_fn=lambda d: d["aggregates"].get("solar", {}).get("instant_power"),
+        value_fn=lambda d: d["json"].get("solar"),
     ),
     PyPowerwallSensorDescription(
         key="battery_power",
@@ -42,7 +42,7 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:battery-charging",
-        value_fn=lambda d: d["aggregates"].get("battery", {}).get("instant_power"),
+        value_fn=lambda d: d["json"].get("battery"),
     ),
     PyPowerwallSensorDescription(
         key="grid_power",
@@ -51,7 +51,7 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:transmission-tower",
-        value_fn=lambda d: d["aggregates"].get("site", {}).get("instant_power"),
+        value_fn=lambda d: d["json"].get("grid"),
     ),
     PyPowerwallSensorDescription(
         key="home_power",
@@ -60,7 +60,7 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:home-lightning-bolt",
-        value_fn=lambda d: d["aggregates"].get("load", {}).get("instant_power"),
+        value_fn=lambda d: d["json"].get("home"),
     ),
     PyPowerwallSensorDescription(
         key="battery_level",
@@ -68,7 +68,7 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda d: d["soe"].get("percentage"),
+        value_fn=lambda d: d["json"].get("soe"),
     ),
     PyPowerwallSensorDescription(
         key="grid_voltage",

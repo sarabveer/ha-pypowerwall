@@ -22,7 +22,7 @@ async def async_setup_entry(
 
 
 class PyPowerwallGridConnected(PyPowerwallEntity, BinarySensorEntity):
-    """Binary sensor: is the grid connected?"""
+    """Binary sensor: is the grid connected? grid_status=1 means connected."""
 
     _attr_translation_key = "grid_connected"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
@@ -34,6 +34,6 @@ class PyPowerwallGridConnected(PyPowerwallEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         try:
-            return self.coordinator.data["grid_status"].get("grid_status") == "SystemGridConnected"
+            return self.coordinator.data["json"].get("grid_status") == 1
         except (KeyError, TypeError):
             return None
