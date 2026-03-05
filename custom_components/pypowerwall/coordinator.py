@@ -32,19 +32,28 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         connector = aiohttp.TCPConnector(force_close=True)
         try:
             async with aiohttp.ClientSession(connector=connector) as session:
-                # /json gives power, soe, and grid_status in one shot
                 data = await self._get(session, "/json")
-                _LOGGER.debug("/json OK: %s", data)
-                # /api/meters/aggregates gives voltage and frequency
                 aggregates = await self._get(session, "/api/meters/aggregates")
-                _LOGGER.debug("/api/meters/aggregates OK")
+                vitals = await self._get(session, "/vitals")
+                health = await self._get(session, "/health")
+                version_info = await self._get(session, "/version")
+                operation = await self._get(session, "/api/operation")
+                system_status = await self._get(session, "/api/system_status")
         except UpdateFailed:
             raise
         except Exception as err:
             _LOGGER.exception("Unexpected error fetching pypowerwall data")
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
-        return {"json": data, "aggregates": aggregates}
+        return {
+            "json": data,
+            "aggregates": aggregates,
+            "vitals": vitals,
+            "health": health,
+            "version_info": version_info,
+            "operation": operation,
+            "system_status": system_status,
+        }
 
     async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
         url = f"{self._base_url}{path}"

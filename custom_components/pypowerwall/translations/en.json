@@ -24,11 +24,18 @@
       "grid_power": {"name": "Grid Power"},
       "home_power": {"name": "Home Power"},
       "battery_level": {"name": "Battery Level"},
+      "battery_reserve": {"name": "Battery Reserve"},
+      "time_remaining": {"name": "Time Remaining"},
       "grid_voltage": {"name": "Grid Voltage"},
-      "grid_frequency": {"name": "Grid Frequency"}
+      "grid_frequency": {"name": "Grid Frequency"},
+      "operation_mode": {"name": "Operation Mode"},
+      "pypowerwall_version": {"name": "PyPowerwall Version"},
+      "firmware_version": {"name": "Firmware Version"}
     },
     "binary_sensor": {
-      "grid_connected": {"name": "Grid Connected"}
+      "grid_connected": {"name": "Grid Connected"},
+      "grid_fault": {"name": "Grid Fault"},
+      "proxy_degraded": {"name": "Proxy Degraded"}
     }
   }
 }

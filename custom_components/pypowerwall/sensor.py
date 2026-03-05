@@ -9,9 +9,17 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfElectricPotential, UnitOfFrequency, UnitOfPower, PERCENTAGE
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfElectricPotential,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import StateType
 
 from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
@@ -25,7 +33,16 @@ class PyPowerwallSensorDescription(SensorEntityDescription):
     value_fn: Any
 
 
+def _vitals_frequency(d: dict) -> float | None:
+    """Extract AC frequency from the first PVAC device in vitals."""
+    for key, val in (d.get("vitals") or {}).items():
+        if key.startswith("PVAC"):
+            return val.get("PVAC_Fout")
+    return None
+
+
 SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
+    # --- Power ---
     PyPowerwallSensorDescription(
         key="solar_power",
         translation_key="solar_power",
@@ -62,14 +79,34 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         icon="mdi:home-lightning-bolt",
         value_fn=lambda d: d["json"].get("home"),
     ),
+    # --- Battery ---
     PyPowerwallSensorDescription(
         key="battery_level",
         translation_key="battery_level",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda d: d["json"].get("soe"),
+        value_fn=lambda d: round(d["json"]["soe"], 1) if d["json"].get("soe") is not None else None,
     ),
+    PyPowerwallSensorDescription(
+        key="battery_reserve",
+        translation_key="battery_reserve",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:battery-lock",
+        value_fn=lambda d: d["json"].get("reserve"),
+    ),
+    PyPowerwallSensorDescription(
+        key="time_remaining",
+        translation_key="time_remaining",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:timer-outline",
+        value_fn=lambda d: round(d["json"]["time_remaining_hours"], 2) if d["json"].get("time_remaining_hours") is not None else None,
+    ),
+    # --- Grid ---
     PyPowerwallSensorDescription(
         key="grid_voltage",
         translation_key="grid_voltage",
@@ -84,7 +121,29 @@ SENSOR_DESCRIPTIONS: tuple[PyPowerwallSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda d: d["aggregates"].get("site", {}).get("frequency"),
+        value_fn=_vitals_frequency,
+    ),
+    # --- Diagnostic ---
+    PyPowerwallSensorDescription(
+        key="operation_mode",
+        translation_key="operation_mode",
+        icon="mdi:cog",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (d.get("operation") or {}).get("real_mode"),
+    ),
+    PyPowerwallSensorDescription(
+        key="pypowerwall_version",
+        translation_key="pypowerwall_version",
+        icon="mdi:information-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (d.get("health") or {}).get("pypowerwall"),
+    ),
+    PyPowerwallSensorDescription(
+        key="firmware_version",
+        translation_key="firmware_version",
+        icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (d.get("version_info") or {}).get("version"),
     ),
 )
 
@@ -117,7 +176,7 @@ class PyPowerwallSensor(PyPowerwallEntity, SensorEntity):
         self._attr_unique_id = f"{entry_id}_{description.key}"
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> StateType:
         try:
             return self.entity_description.value_fn(self.coordinator.data)
         except (KeyError, TypeError):
