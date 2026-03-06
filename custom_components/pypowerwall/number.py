@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -22,7 +22,10 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data.coordinator
     if coordinator.has_control_secret:
-        async_add_entities([PyPowerwallBackupReserve(coordinator, entry.entry_id)])
+        async_add_entities([
+            PyPowerwallBackupReserve(coordinator, entry.entry_id),
+            PyPowerwallMaxBackupDuration(coordinator, entry.entry_id),
+        ])
 
 
 class PyPowerwallBackupReserve(PyPowerwallEntity, NumberEntity):
@@ -63,3 +66,27 @@ class PyPowerwallBackupReserve(PyPowerwallEntity, NumberEntity):
                 f"Failed to set backup reserve to {value}%"
             )
         await self.coordinator.async_request_refresh()
+
+
+class PyPowerwallMaxBackupDuration(PyPowerwallEntity, NumberEntity):
+    """Max backup duration control."""
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 480
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_mode = NumberMode.SLIDER
+    _attr_icon = "mdi:timer-outline"
+    _attr_translation_key = "max_backup_duration"
+
+    def __init__(self, coordinator: PyPowerwallCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_max_backup_duration"
+
+    @property
+    def native_value(self) -> float | None:
+        return self.coordinator.max_backup_duration / 60
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.coordinator.max_backup_duration = int(value) * 60
+        self.async_write_ha_state()

@@ -21,7 +21,10 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data.coordinator
     if coordinator.has_control_secret:
-        async_add_entities([PyPowerwallGridCharging(coordinator, entry.entry_id)])
+        async_add_entities([
+            PyPowerwallGridCharging(coordinator, entry.entry_id),
+            PyPowerwallMaxBackup(coordinator, entry.entry_id),
+        ])
 
 
 class PyPowerwallGridCharging(PyPowerwallEntity, SwitchEntity):
@@ -57,4 +60,38 @@ class PyPowerwallGridCharging(PyPowerwallEntity, SwitchEntity):
         )
         if not success:
             raise HomeAssistantError("Failed to disable grid charging")
+        await self.coordinator.async_request_refresh()
+
+
+class PyPowerwallMaxBackup(PyPowerwallEntity, SwitchEntity):
+    """Max backup control switch."""
+
+    _attr_translation_key = "max_backup"
+    _attr_icon = "mdi:battery-arrow-up"
+
+    def __init__(self, coordinator: PyPowerwallCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_max_backup"
+
+    @property
+    def is_on(self) -> bool | None:
+        data = self.coordinator.data.get("control_max_backup")
+        if data and isinstance(data, dict):
+            return data.get("manual_backup") is not None
+        return None
+
+    async def async_turn_on(self, **kwargs) -> None:
+        success = await self.coordinator.send_command(
+            "/control/max_backup", self.coordinator.max_backup_duration
+        )
+        if not success:
+            raise HomeAssistantError("Failed to enable max backup")
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        success = await self.coordinator.send_command(
+            "/control/max_backup", "cancel"
+        )
+        if not success:
+            raise HomeAssistantError("Failed to cancel max backup")
         await self.coordinator.async_request_refresh()

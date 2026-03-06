@@ -100,7 +100,8 @@
       "island_grid_connected": { "name": "Red Isla Conectada" }
     },
     "number": {
-      "backup_reserve": { "name": "Reserva de Respaldo" }
+      "backup_reserve": { "name": "Reserva de Respaldo" },
+      "max_backup_duration": { "name": "Duración de Respaldo Máximo" }
     },
     "select": {
       "operation_mode_select": {
@@ -121,7 +122,8 @@
       }
     },
     "switch": {
-      "grid_charging": { "name": "Carga desde Red" }
+      "grid_charging": { "name": "Carga desde Red" },
+      "max_backup": { "name": "Respaldo Máximo" }
     },
     "event": {
       "powerwall_alert": {

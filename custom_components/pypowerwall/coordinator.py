@@ -34,6 +34,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self._base_url = f"http://{host}:{port}"
         self._control_secret = control_secret
+        self.max_backup_duration: int = 3600
         _LOGGER.debug(
             "PyPowerwallCoordinator initialised, base_url=%s, interval=%ss, control=%s",
             self._base_url,
@@ -61,6 +62,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     stats,
                     control_grid_charging,
                     control_grid_export,
+                    control_max_backup,
                 ) = await asyncio.gather(
                     # Required endpoints
                     self._get(session, "/aggregates"),
@@ -78,6 +80,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # Control state (only available when PW_CONTROL_SECRET is set on proxy)
                     self._get_optional(session, "/control/grid_charging"),
                     self._get_optional(session, "/control/grid_export"),
+                    self._get_optional(session, "/control/max_backup"),
                 )
         except UpdateFailed:
             raise
@@ -103,6 +106,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "stats": stats,
             "control_grid_charging": control_grid_charging,
             "control_grid_export": control_grid_export,
+            "control_max_backup": control_max_backup,
         }
 
     async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
