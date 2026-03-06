@@ -122,6 +122,19 @@
     },
     "switch": {
       "grid_charging": { "name": "Carga desde Red" }
+    },
+    "event": {
+      "powerwall_alert": {
+        "name": "Alerta de Powerwall",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "alert_fired": "Alerta Activada",
+              "alert_cleared": "Alerta Despejada"
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -7,7 +7,7 @@ from .const import CONF_CONTROL_SECRET, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVA
 from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry, PyPowerwallData
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SELECT, Platform.SWITCH]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.EVENT, Platform.NUMBER, Platform.SELECT, Platform.SWITCH]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PyPowerwallConfigEntry) -> bool:

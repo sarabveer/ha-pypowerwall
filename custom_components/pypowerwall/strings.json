@@ -122,6 +122,19 @@
     },
     "switch": {
       "grid_charging": { "name": "Grid Charging" }
+    },
+    "event": {
+      "powerwall_alert": {
+        "name": "Powerwall Alert",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "alert_fired": "Alert Fired",
+              "alert_cleared": "Alert Cleared"
+            }
+          }
+        }
+      }
     }
   }
 }
