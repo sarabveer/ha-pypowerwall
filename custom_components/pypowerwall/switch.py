@@ -81,6 +81,13 @@ class PyPowerwallMaxBackup(PyPowerwallEntity, SwitchEntity):
         return None
 
     async def async_turn_on(self, **kwargs) -> None:
+        # Must cancel any existing/expired max backup before setting a new one
+        if self.is_on:
+            cancel_ok = await self.coordinator.send_command(
+                "/control/max_backup", "cancel"
+            )
+            if not cancel_ok:
+                raise HomeAssistantError("Failed to cancel existing max backup before re-set")
         success = await self.coordinator.send_command(
             "/control/max_backup", self.coordinator.max_backup_duration
         )
