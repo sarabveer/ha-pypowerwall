@@ -48,6 +48,10 @@ No Python pypowerwall library required in HA — pure `aiohttp`.
 
 ### HACS (Recommended)
 
+[![Open your Home Assistant instance and open the ha-pypowerwall integration inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nalditopr&repository=ha-pypowerwall&category=integration)
+
+Or manually add the custom repository:
+
 1. Open HACS in Home Assistant.
 2. Go to **Integrations** → three-dot menu → **Custom repositories**.
 3. Add `https://github.com/nalditopr/ha-pypowerwall` with category **Integration**.
