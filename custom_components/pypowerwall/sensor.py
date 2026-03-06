@@ -172,6 +172,18 @@ MAIN_SENSORS: tuple[PyPowerwallSensorDescription, ...] = (
             if isinstance(v, dict)
         ),
     ),
+    PyPowerwallSensorDescription(
+        key="active_alerts",
+        translation_key="active_alerts",
+        icon="mdi:alert-circle-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: ", ".join(sorted({
+            alert
+            for v in (d.get("vitals") or {}).values()
+            if isinstance(v, dict)
+            for alert in v.get("alerts", [])
+        })) or "None",
+    ),
     # Troubleshooting
     PyPowerwallSensorDescription(
         key="troubleshooting_problems",

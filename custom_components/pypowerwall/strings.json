@@ -42,6 +42,7 @@
       "grid_voltage": { "name": "Grid Voltage" },
       "grid_frequency": { "name": "Grid Frequency" },
       "alert_count": { "name": "Alert Count" },
+      "active_alerts": { "name": "Active Alerts" },
       "troubleshooting_problems": { "name": "Troubleshooting Problems" },
       "operation_mode": { "name": "Operation Mode" },
       "pypowerwall_version": { "name": "PyPowerwall Version" },
