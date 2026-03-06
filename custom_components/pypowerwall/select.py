@@ -14,6 +14,7 @@ from .entity import PyPowerwallEntity
 _LOGGER = logging.getLogger(__name__)
 
 OPERATION_MODES = ["self_consumption", "backup", "autonomous"]
+GRID_EXPORT_MODES = ["battery_ok", "pv_only", "never"]
 
 
 async def async_setup_entry(
@@ -23,7 +24,10 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data.coordinator
     if coordinator.has_control_secret:
-        async_add_entities([PyPowerwallOperationMode(coordinator, entry.entry_id)])
+        async_add_entities([
+            PyPowerwallOperationMode(coordinator, entry.entry_id),
+            PyPowerwallGridExport(coordinator, entry.entry_id),
+        ])
 
 
 class PyPowerwallOperationMode(PyPowerwallEntity, SelectEntity):
@@ -53,5 +57,36 @@ class PyPowerwallOperationMode(PyPowerwallEntity, SelectEntity):
         if not success:
             raise HomeAssistantError(
                 f"Failed to set operation mode to {option}"
+            )
+        await self.coordinator.async_request_refresh()
+
+
+class PyPowerwallGridExport(PyPowerwallEntity, SelectEntity):
+    """Grid export mode control."""
+
+    _attr_options = GRID_EXPORT_MODES
+    _attr_translation_key = "grid_export"
+    _attr_icon = "mdi:transmission-tower-export"
+
+    def __init__(self, coordinator: PyPowerwallCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_grid_export"
+
+    @property
+    def current_option(self) -> str | None:
+        data = self.coordinator.data.get("control_grid_export")
+        if data and isinstance(data, dict):
+            mode = data.get("grid_export")
+            if mode in GRID_EXPORT_MODES:
+                return mode
+        return None
+
+    async def async_select_option(self, option: str) -> None:
+        success = await self.coordinator.send_command(
+            "/control/grid_export", option
+        )
+        if not success:
+            raise HomeAssistantError(
+                f"Failed to set grid export mode to {option}"
             )
         await self.coordinator.async_request_refresh()

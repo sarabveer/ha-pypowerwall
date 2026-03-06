@@ -59,6 +59,8 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pod,
                     troubleshooting,
                     stats,
+                    control_grid_charging,
+                    control_grid_export,
                 ) = await asyncio.gather(
                     # Required endpoints
                     self._get(session, "/aggregates"),
@@ -73,6 +75,9 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._get_optional(session, "/pod"),
                     self._get_optional(session, "/api/troubleshooting/problems"),
                     self._get_optional(session, "/stats"),
+                    # Control state (only available when PW_CONTROL_SECRET is set on proxy)
+                    self._get_optional(session, "/control/grid_charging"),
+                    self._get_optional(session, "/control/grid_export"),
                 )
         except UpdateFailed:
             raise
@@ -96,6 +101,8 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "pod": pod,
             "troubleshooting": troubleshooting,
             "stats": stats,
+            "control_grid_charging": control_grid_charging,
+            "control_grid_export": control_grid_export,
         }
 
     async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:

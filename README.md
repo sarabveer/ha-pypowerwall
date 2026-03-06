@@ -32,7 +32,8 @@ No Python pypowerwall library required in HA — pure `aiohttp`.
 | `sensor`        | Power, battery, grid, inverter, PVAC, PV string, island controller, and grid meter data  |
 | `binary_sensor` | Grid status, alerts, pod health flags, PV string connected                               |
 | `number`        | Backup reserve percentage control (requires `control_secret`)                            |
-| `select`        | Operation mode — Self-Powered / Backup-Only / Time-Based Control (requires `control_secret`) |
+| `select`        | Operation mode and grid export policy (requires `control_secret`)                        |
+| `switch`        | Grid charging toggle (requires `control_secret`)                                         |
 
 ## Features
 
@@ -41,7 +42,7 @@ No Python pypowerwall library required in HA — pure `aiohttp`.
 - **Grid meter per-leg data** — L1/L2 power, voltage, current, reactive power, and lifetime energy counters
 - **Pod health flags** — from `/pod` endpoint (permanently/persistently faulted, active heating, charge/discharge complete, wobble detected, and more)
 - **Alert monitoring** — per-device and aggregate alert counts
-- **Backup reserve & operation mode control** — requires `PW_CONTROL_SECRET` configured on the proxy
+- **Backup reserve, operation mode, grid charging & grid export control** — requires `PW_CONTROL_SECRET` configured on the proxy
 - **Configurable polling interval** — 5–300 seconds (default 30 s)
 
 ## Installation

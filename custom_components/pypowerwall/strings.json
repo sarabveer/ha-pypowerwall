@@ -110,7 +110,18 @@
           "backup": "Backup-Only",
           "autonomous": "Time-Based Control"
         }
+      },
+      "grid_export": {
+        "name": "Grid Export",
+        "state": {
+          "battery_ok": "Battery OK",
+          "pv_only": "Solar Only",
+          "never": "Never"
+        }
       }
+    },
+    "switch": {
+      "grid_charging": { "name": "Grid Charging" }
     }
   }
 }
