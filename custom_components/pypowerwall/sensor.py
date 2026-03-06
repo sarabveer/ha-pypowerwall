@@ -740,8 +740,8 @@ class PyPowerwallStringSensor(PyPowerwallEntity, SensorEntity):
     def native_value(self) -> StateType:
         try:
             device_data = self.coordinator.data["vitals"][self._pvac_key]
-            pv_key = f"PVAC_PVMeasured{self._field_key}_{self._string_id}"
-            if self._field_key == "Current":
+            pv_key = f"PVAC_PVMeasured{self._field_key.capitalize()}_{self._string_id}"
+            if self._field_key == "current":
                 pv_key = f"PVAC_PVCurrent_{self._string_id}"
             return device_data.get(pv_key)
         except (KeyError, TypeError):
