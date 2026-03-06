@@ -806,7 +806,7 @@ async def async_setup_entry(
 
     vitals = coordinator.data.get("vitals") or {}
     block_by_serial = build_block_by_serial(coordinator.data)
-    device_labels = build_device_labels(block_by_serial)
+    device_labels = build_device_labels(block_by_serial, vitals)
 
     # --- Battery pod sensors (TEPOD) ---
     for vkey, vdata in vitals.items():

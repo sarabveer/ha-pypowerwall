@@ -50,18 +50,32 @@ def build_block_by_serial(coordinator_data: dict[str, Any]) -> dict[str, dict]:
     return block_by_serial
 
 
-def build_device_labels(block_by_serial: dict[str, dict]) -> dict[str, str]:
+def build_device_labels(
+    block_by_serial: dict[str, dict],
+    vitals: dict[str, Any] | None = None,
+) -> dict[str, str]:
     """Determine Primary/Follower/Expansion label for each serial.
 
-    Logic:
-    - "Expansion" if Type contains "Expansion"
-    - If only 1 non-expansion → "Primary"
-    - If multiple non-expansion: Type containing "Solar" → "Primary", rest → "Follower"
-    - Fallback: first non-expansion is Primary, rest Follower
+    Uses the STSTSM gateway serial from vitals to definitively identify the
+    Primary Powerwall.  The STSTSM device has ``STSTSM-Location: "Gateway"``
+    and its serial matches the leader Powerwall's PVAC/TEPOD/TEPINV serial.
+
+    For serials found in vitals but NOT in block_by_serial (e.g. PVAC/TEPINV
+    devices), the label is inherited from the matching block serial or defaults
+    to "Primary" when the serial matches the gateway.
     """
     labels: dict[str, str] = {}
-    non_expansion: list[str] = []
+    vitals = vitals or {}
 
+    # 1. Find gateway serial from STSTSM key in vitals
+    gateway_serial: str | None = None
+    for vkey in vitals:
+        if vkey.startswith("STSTSM"):
+            _, gateway_serial = parse_vitals_key(vkey)
+            break
+
+    # 2. Label battery blocks
+    non_expansion: list[str] = []
     for serial, block in block_by_serial.items():
         block_type = block.get("Type", "")
         if "Expansion" in block_type:
@@ -69,22 +83,27 @@ def build_device_labels(block_by_serial: dict[str, dict]) -> dict[str, str]:
         else:
             non_expansion.append(serial)
 
-    if len(non_expansion) == 1:
+    if gateway_serial:
+        # Definitive: gateway serial is Primary, rest are Followers
+        for serial in non_expansion:
+            labels[serial] = "Primary" if serial == gateway_serial else "Follower"
+    elif len(non_expansion) == 1:
         labels[non_expansion[0]] = "Primary"
     elif len(non_expansion) > 1:
-        primary_found = False
-        for serial in non_expansion:
-            block_type = block_by_serial[serial].get("Type", "")
-            if "Solar" in block_type and not primary_found:
-                labels[serial] = "Primary"
-                primary_found = True
-            else:
-                labels[serial] = "Follower"
-        # Fallback: if no Solar type found, first is Primary
-        if not primary_found:
-            labels[non_expansion[0]] = "Primary"
-            for serial in non_expansion[1:]:
-                labels[serial] = "Follower"
+        # Fallback: first non-expansion is Primary
+        labels[non_expansion[0]] = "Primary"
+        for serial in non_expansion[1:]:
+            labels[serial] = "Follower"
+
+    # 3. Label vitals-only serials (PVAC, TEPINV without a battery_block)
+    for vkey in vitals:
+        if vkey.startswith(("PVAC", "TEPINV", "TEPOD")):
+            _, serial = parse_vitals_key(vkey)
+            if serial not in labels:
+                if serial == gateway_serial:
+                    labels[serial] = "Primary"
+                else:
+                    labels[serial] = labels.get(serial, "Follower")
 
     return labels
 

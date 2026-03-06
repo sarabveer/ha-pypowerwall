@@ -43,15 +43,15 @@ class PyPowerwallBackupReserve(PyPowerwallEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         d = self.coordinator.data
-        # Prefer /json reserve, fall back to /api/operation
-        val = d.get("json", {}).get("reserve")
-        if val is not None:
-            return float(val)
+        # Prefer /api/operation (actual setting), fall back to /json reserve
         op = d.get("operation")
         if op and isinstance(op, dict):
             val = op.get("backup_reserve_percent")
             if val is not None:
-                return float(val)
+                return max(0.0, min(100.0, float(val)))
+        val = d.get("json", {}).get("reserve")
+        if val is not None:
+            return max(0.0, min(100.0, float(val)))
         return None
 
     async def async_set_native_value(self, value: float) -> None:
