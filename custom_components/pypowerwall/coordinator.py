@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -45,22 +46,34 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         connector = aiohttp.TCPConnector(force_close=True)
         try:
             async with aiohttp.ClientSession(connector=connector) as session:
-                # Confirmed endpoints (required)
-                aggregates = await self._get(session, "/aggregates")
-                vitals = await self._get(session, "/vitals")
-                health = await self._get(session, "/health")
-
-                # Non-confirmed endpoints (optional)
-                data = await self._get_optional(session, "/json")
-                version_info = await self._get_optional(session, "/version")
-                operation = await self._get_optional(session, "/api/operation")
-                system_status = await self._get_optional(session, "/api/system_status")
-                sitemaster = await self._get_optional(session, "/api/sitemaster")
-                pod = await self._get_optional(session, "/pod")
-                troubleshooting = await self._get_optional(
-                    session, "/api/troubleshooting/problems"
+                # Fire all requests concurrently
+                (
+                    aggregates,
+                    vitals,
+                    health,
+                    data,
+                    version_info,
+                    operation,
+                    system_status,
+                    sitemaster,
+                    pod,
+                    troubleshooting,
+                    stats,
+                ) = await asyncio.gather(
+                    # Required endpoints
+                    self._get(session, "/aggregates"),
+                    self._get(session, "/vitals"),
+                    self._get(session, "/health"),
+                    # Optional endpoints
+                    self._get_optional(session, "/json"),
+                    self._get_optional(session, "/version"),
+                    self._get_optional(session, "/api/operation"),
+                    self._get_optional(session, "/api/system_status"),
+                    self._get_optional(session, "/api/sitemaster"),
+                    self._get_optional(session, "/pod"),
+                    self._get_optional(session, "/api/troubleshooting/problems"),
+                    self._get_optional(session, "/stats"),
                 )
-                stats = await self._get_optional(session, "/stats")
         except UpdateFailed:
             raise
         except Exception as err:
