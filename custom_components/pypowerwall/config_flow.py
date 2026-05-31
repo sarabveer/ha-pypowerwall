@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+import asyncio
 from typing import Any
 
 import aiohttp
@@ -8,16 +8,23 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_CONTROL_SECRET, CONF_SCAN_INTERVAL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
+from .const import (
+    CONF_CONTROL_SECRET,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_PORT,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST): str,
-        vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.Coerce(int),
+        vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=65535)
+        ),
         vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=5, max=300)
         ),
@@ -26,21 +33,20 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-async def _test_connection(host: str, port: int) -> bool:
+async def _test_connection(hass: HomeAssistant, host: str, port: int) -> bool:
     url = f"http://{host}:{port}/api/system_status/soe"
-    connector = aiohttp.TCPConnector(force_close=True)
     try:
-        async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.get(
-                url,
-                headers={"Connection": "close"},
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                if resp.status != 200:
-                    return False
-                data = await resp.json(content_type=None)
-                return isinstance(data, dict)
-    except Exception:  # noqa: BLE001
+        session = async_get_clientsession(hass)
+        async with session.get(
+            url,
+            headers={"Connection": "close"},
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            if resp.status != 200:
+                return False
+            data = await resp.json(content_type=None)
+            return isinstance(data, dict)
+    except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
         return False
 
 
@@ -55,15 +61,20 @@ class PyPowerwallConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            host = user_input[CONF_HOST]
+            host = user_input[CONF_HOST].strip()
             port = user_input[CONF_PORT]
 
-            if await _test_connection(host, port):
+            if await _test_connection(self.hass, host, port):
                 await self.async_set_unique_id(f"{host}:{port}")
                 self._abort_if_unique_id_configured()
+                options = {
+                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                    CONF_CONTROL_SECRET: user_input.get(CONF_CONTROL_SECRET, ""),
+                }
                 return self.async_create_entry(
                     title=f"PyPowerwall ({host}:{port})",
-                    data=user_input,
+                    data={CONF_HOST: host, CONF_PORT: port},
+                    options=options,
                 )
             errors["base"] = "cannot_connect"
 
@@ -104,7 +115,7 @@ class PyPowerwallOptionsFlow(OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Optional(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
-                        vol.Coerce(int), vol.Range(min=5, max=300)
+                        vol.Coerce(int), vol.Range(min=5, max=300),
                     ),
                     vol.Optional(CONF_CONTROL_SECRET, default=current_secret): str,
                 }

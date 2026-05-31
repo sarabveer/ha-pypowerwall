@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from homeassistant.components.event import EventEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
@@ -9,8 +7,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .data import PyPowerwallConfigEntry
 from .entity import PyPowerwallEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 EVENT_ALERT_FIRED = "alert_fired"
 EVENT_ALERT_CLEARED = "alert_cleared"

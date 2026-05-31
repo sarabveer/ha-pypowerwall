@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -10,8 +8,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
 from .entity import PyPowerwallEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 OPERATION_MODES = ["self_consumption", "backup", "autonomous"]
 GRID_EXPORT_MODES = ["battery_ok", "pv_only", "never"]

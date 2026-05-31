@@ -23,6 +23,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         hass: HomeAssistant,
         host: str,
         port: int,
+        session: aiohttp.ClientSession,
         scan_interval: int = DEFAULT_SCAN_INTERVAL,
         control_secret: str = "",
     ) -> None:
@@ -33,6 +34,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self._base_url = f"http://{host}:{port}"
+        self._session = session
         self._control_secret = control_secret
         self.max_backup_duration: int = 3600
         _LOGGER.debug(
@@ -44,44 +46,42 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         _LOGGER.debug("Starting data refresh from %s", self._base_url)
-        connector = aiohttp.TCPConnector(force_close=True)
         try:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                # Fire all requests concurrently
-                (
-                    aggregates,
-                    vitals,
-                    health,
-                    data,
-                    version_info,
-                    operation,
-                    system_status,
-                    sitemaster,
-                    pod,
-                    troubleshooting,
-                    stats,
-                ) = await asyncio.gather(
-                    # Required endpoints
-                    self._get(session, "/aggregates"),
-                    self._get(session, "/vitals"),
-                    self._get(session, "/health"),
-                    # Optional endpoints
-                    self._get_optional(session, "/json"),
-                    self._get_optional(session, "/version"),
-                    self._get_optional(session, "/api/operation"),
-                    self._get_optional(session, "/api/system_status"),
-                    self._get_optional(session, "/api/sitemaster"),
-                    self._get_optional(session, "/pod"),
-                    self._get_optional(session, "/api/troubleshooting/problems"),
-                    self._get_optional(session, "/stats"),
-                )
-                (
-                    control_reserve,
-                    control_mode,
-                    control_grid_charging,
-                    control_grid_export,
-                    control_max_backup,
-                ) = await self._async_get_control_state(session)
+            # Fire all requests concurrently
+            (
+                aggregates,
+                vitals,
+                health,
+                data,
+                version_info,
+                operation,
+                system_status,
+                sitemaster,
+                pod,
+                troubleshooting,
+                stats,
+            ) = await asyncio.gather(
+                # Required endpoints
+                self._get("/aggregates"),
+                self._get("/vitals"),
+                self._get("/health"),
+                # Optional endpoints
+                self._get_optional("/json"),
+                self._get_optional("/version"),
+                self._get_optional("/api/operation"),
+                self._get_optional("/api/system_status"),
+                self._get_optional("/api/sitemaster"),
+                self._get_optional("/pod"),
+                self._get_optional("/api/troubleshooting/problems"),
+                self._get_optional("/stats"),
+            )
+            (
+                control_reserve,
+                control_mode,
+                control_grid_charging,
+                control_grid_export,
+                control_max_backup,
+            ) = await self._async_get_control_state()
         except UpdateFailed:
             raise
         except Exception as err:
@@ -111,11 +111,11 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "control_max_backup": control_max_backup,
         }
 
-    async def _get(self, session: aiohttp.ClientSession, path: str) -> Any:
+    async def _get(self, path: str) -> Any:
         url = f"{self._base_url}{path}"
         _LOGGER.debug("GET %s", url)
         try:
-            async with session.get(
+            async with self._session.get(
                 url,
                 headers={"Connection": "close"},
                 timeout=aiohttp.ClientTimeout(total=10),
@@ -123,16 +123,23 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("Response %s: status=%s", url, resp.status)
                 resp.raise_for_status()
                 return await resp.json(content_type=None)
-        except aiohttp.ClientError as err:
-            _LOGGER.error("ClientError on GET %s: %s (%s)", url, err, type(err).__name__)
-            raise UpdateFailed(f"Error communicating with pypowerwall proxy: {err}") from err
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+            _LOGGER.error(
+                "Error on GET %s: %s (%s)",
+                url,
+                err,
+                type(err).__name__,
+            )
+            raise UpdateFailed(
+                f"Error communicating with pypowerwall proxy: {err}"
+            ) from err
 
-    async def _get_optional(self, session: aiohttp.ClientSession, path: str) -> Any:
+    async def _get_optional(self, path: str) -> Any:
         """Fetch an endpoint, returning None on 404 or any client error."""
         url = f"{self._base_url}{path}"
         _LOGGER.debug("GET (optional) %s", url)
         try:
-            async with session.get(
+            async with self._session.get(
                 url,
                 headers={"Connection": "close"},
                 timeout=aiohttp.ClientTimeout(total=10),
@@ -142,7 +149,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return None
                 resp.raise_for_status()
                 return await resp.json(content_type=None)
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
             _LOGGER.debug("Optional endpoint %s failed: %s", url, err)
             return None
 
@@ -151,20 +158,18 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return True if a control secret is configured."""
         return bool(self._control_secret)
 
-    async def _async_get_control_state(
-        self, session: aiohttp.ClientSession
-    ) -> tuple[Any, Any, Any, Any, Any]:
+    async def _async_get_control_state(self) -> tuple[Any, Any, Any, Any, Any]:
         """Fetch control state endpoints when control is configured."""
         if not self.has_control_secret:
             return None, None, None, None, None
 
         return tuple(
             await asyncio.gather(
-                self._get_optional(session, "/control/reserve"),
-                self._get_optional(session, "/control/mode"),
-                self._get_optional(session, "/control/grid_charging"),
-                self._get_optional(session, "/control/grid_export"),
-                self._get_optional(session, "/control/max_backup"),
+                self._get_optional("/control/reserve"),
+                self._get_optional("/control/mode"),
+                self._get_optional("/control/grid_charging"),
+                self._get_optional("/control/grid_export"),
+                self._get_optional("/control/max_backup"),
             )
         )
 
@@ -180,27 +185,25 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         url = f"{self._base_url}{path}"
         form_data = {"value": str(value), "token": self._control_secret}
         _LOGGER.debug("POST %s value=%s", url, value)
-        connector = aiohttp.TCPConnector(force_close=True)
         try:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.post(
-                    url,
-                    data=form_data,
-                    headers={"Connection": "close"},
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    _LOGGER.debug("POST %s: status=%s", url, resp.status)
-                    resp.raise_for_status()
-                    try:
-                        response = await resp.json(content_type=None)
-                    except ValueError:
-                        return True
-                    if isinstance(response, dict) and (
-                        "error" in response or "unauthorized" in response
-                    ):
-                        _LOGGER.error("POST %s returned error: %s", url, response)
-                        return False
+            async with self._session.post(
+                url,
+                data=form_data,
+                headers={"Connection": "close"},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                _LOGGER.debug("POST %s: status=%s", url, resp.status)
+                resp.raise_for_status()
+                try:
+                    response = await resp.json(content_type=None)
+                except ValueError:
                     return True
-        except aiohttp.ClientError as err:
+                if isinstance(response, dict) and (
+                    "error" in response or "unauthorized" in response
+                ):
+                    _LOGGER.error("POST %s returned error: %s", url, response)
+                    return False
+                return True
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.error("POST %s failed: %s", url, err)
             return False

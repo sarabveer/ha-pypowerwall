@@ -9,6 +9,12 @@
           "port": "Port",
           "scan_interval": "Polling interval (seconds)",
           "control_secret": "Control secret (PW_CONTROL_SECRET)"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of the pypowerwall proxy.",
+          "port": "HTTP port used by the pypowerwall proxy.",
+          "scan_interval": "How often Home Assistant polls the proxy.",
+          "control_secret": "Optional secret configured as PW_CONTROL_SECRET on the proxy. Required for control entities."
         }
       }
     },
@@ -26,6 +32,10 @@
         "data": {
           "scan_interval": "Polling interval (seconds)",
           "control_secret": "Control secret (PW_CONTROL_SECRET)"
+        },
+        "data_description": {
+          "scan_interval": "How often Home Assistant polls the proxy.",
+          "control_secret": "Optional secret configured as PW_CONTROL_SECRET on the proxy. Required for control entities."
         }
       }
     }
