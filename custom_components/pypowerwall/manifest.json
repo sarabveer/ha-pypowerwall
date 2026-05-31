@@ -2,7 +2,7 @@
   "domain": "pypowerwall",
   "name": "PyPowerwall",
   "config_flow": true,
-  "documentation": "https://gitea.bb.rctechpr.net/localadmin/ha-pypowerwall",
+  "documentation": "https://github.com/sarabveer/ha-pypowerwall",
   "iot_class": "local_polling",
   "version": "0.1.0",
   "requirements": []

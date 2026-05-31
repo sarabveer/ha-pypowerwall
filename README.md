@@ -1,8 +1,6 @@
 # ha-pypowerwall
 
-[![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
 
 [![hacs][hacsbadge]][hacs]
 
@@ -49,13 +47,13 @@ No Python pypowerwall library required in HA — pure `aiohttp`.
 
 ### HACS (Recommended)
 
-[![Open your Home Assistant instance and open the ha-pypowerwall integration inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nalditopr&repository=ha-pypowerwall&category=integration)
+[![Open your Home Assistant instance and open the ha-pypowerwall integration inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=sarabveer&repository=ha-pypowerwall&category=integration)
 
 Or manually add the custom repository:
 
 1. Open HACS in Home Assistant.
 2. Go to **Integrations** → three-dot menu → **Custom repositories**.
-3. Add `https://github.com/nalditopr/ha-pypowerwall` with category **Integration**.
+3. Add `https://github.com/sarabveer/ha-pypowerwall` with category **Integration**.
 4. Search for **PyPowerwall** and install.
 5. Restart Home Assistant.
 
@@ -82,11 +80,8 @@ This integration communicates with the [pypowerwall][pypowerwall] proxy by [@jas
 
 ---
 
-[releases-shield]: https://img.shields.io/github/release/nalditopr/ha-pypowerwall.svg?style=for-the-badge
-[releases]: https://github.com/nalditopr/ha-pypowerwall/releases
-[commits-shield]: https://img.shields.io/github/commit-activity/y/nalditopr/ha-pypowerwall.svg?style=for-the-badge
-[commits]: https://github.com/nalditopr/ha-pypowerwall/commits/main
-[license-shield]: https://img.shields.io/github/license/nalditopr/ha-pypowerwall.svg?style=for-the-badge
+[commits-shield]: https://img.shields.io/github/commit-activity/y/sarabveer/ha-pypowerwall.svg?style=for-the-badge
+[commits]: https://github.com/sarabveer/ha-pypowerwall/commits/main
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [hacs]: https://hacs.xyz
 [pypowerwall]: https://github.com/jasonacox/pypowerwall

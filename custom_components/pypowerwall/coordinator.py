@@ -60,9 +60,6 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pod,
                     troubleshooting,
                     stats,
-                    control_grid_charging,
-                    control_grid_export,
-                    control_max_backup,
                 ) = await asyncio.gather(
                     # Required endpoints
                     self._get(session, "/aggregates"),
@@ -77,11 +74,14 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._get_optional(session, "/pod"),
                     self._get_optional(session, "/api/troubleshooting/problems"),
                     self._get_optional(session, "/stats"),
-                    # Control state (only available when PW_CONTROL_SECRET is set on proxy)
-                    self._get_optional(session, "/control/grid_charging"),
-                    self._get_optional(session, "/control/grid_export"),
-                    self._get_optional(session, "/control/max_backup"),
                 )
+                (
+                    control_reserve,
+                    control_mode,
+                    control_grid_charging,
+                    control_grid_export,
+                    control_max_backup,
+                ) = await self._async_get_control_state(session)
         except UpdateFailed:
             raise
         except Exception as err:
@@ -104,6 +104,8 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "pod": pod,
             "troubleshooting": troubleshooting,
             "stats": stats,
+            "control_reserve": control_reserve,
+            "control_mode": control_mode,
             "control_grid_charging": control_grid_charging,
             "control_grid_export": control_grid_export,
             "control_max_backup": control_max_backup,
@@ -149,6 +151,23 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return True if a control secret is configured."""
         return bool(self._control_secret)
 
+    async def _async_get_control_state(
+        self, session: aiohttp.ClientSession
+    ) -> tuple[Any, Any, Any, Any, Any]:
+        """Fetch control state endpoints when control is configured."""
+        if not self.has_control_secret:
+            return None, None, None, None, None
+
+        return tuple(
+            await asyncio.gather(
+                self._get_optional(session, "/control/reserve"),
+                self._get_optional(session, "/control/mode"),
+                self._get_optional(session, "/control/grid_charging"),
+                self._get_optional(session, "/control/grid_export"),
+                self._get_optional(session, "/control/max_backup"),
+            )
+        )
+
     async def send_command(self, path: str, value: str | int | float) -> bool:
         """POST a control command to the proxy.
 
@@ -172,6 +191,15 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ) as resp:
                     _LOGGER.debug("POST %s: status=%s", url, resp.status)
                     resp.raise_for_status()
+                    try:
+                        response = await resp.json(content_type=None)
+                    except ValueError:
+                        return True
+                    if isinstance(response, dict) and (
+                        "error" in response or "unauthorized" in response
+                    ):
+                        _LOGGER.error("POST %s returned error: %s", url, response)
+                        return False
                     return True
         except aiohttp.ClientError as err:
             _LOGGER.error("POST %s failed: %s", url, err)

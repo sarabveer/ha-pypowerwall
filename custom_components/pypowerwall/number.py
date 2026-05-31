@@ -52,6 +52,11 @@ class PyPowerwallBackupReserve(PyPowerwallEntity, NumberEntity):
             val = op.get("backup_reserve_percent")
             if val is not None:
                 return max(0.0, min(100.0, float(val)))
+        reserve = d.get("control_reserve")
+        if reserve and isinstance(reserve, dict):
+            val = reserve.get("reserve")
+            if val is not None:
+                return max(0.0, min(100.0, float(val)))
         val = d.get("json", {}).get("reserve")
         if val is not None:
             return max(0.0, min(100.0, float(val)))

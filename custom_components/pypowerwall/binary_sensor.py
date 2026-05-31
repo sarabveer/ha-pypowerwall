@@ -142,7 +142,10 @@ class PyPowerwallGridConnected(PyPowerwallEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         try:
-            return self.coordinator.data["json"].get("grid_status") == 1
+            status = self.coordinator.data["json"].get("grid_status")
+            if status is None:
+                return None
+            return status == 1
         except (KeyError, TypeError):
             return None
 

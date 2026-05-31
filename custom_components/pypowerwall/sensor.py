@@ -60,6 +60,14 @@ def _vitals_frequency(d: dict) -> float | None:
     return None
 
 
+def _pod_soc(d: dict) -> float | None:
+    remaining = d.get("POD_nom_energy_remaining")
+    full = d.get("POD_nom_full_pack_energy")
+    if remaining is None or full is None:
+        return None
+    return round(remaining / max(full, 1) * 100, 1)
+
+
 # ---------------------------------------------------------------------------
 #  Main device sensors
 # ---------------------------------------------------------------------------
@@ -231,12 +239,7 @@ POD_SENSORS: tuple[VitalsSensorDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
-        value_fn=lambda d: round(
-            d.get("POD_nom_energy_remaining", 0)
-            / max(d.get("POD_nom_full_pack_energy", 1), 1)
-            * 100,
-            1,
-        ),
+        value_fn=_pod_soc,
     ),
     VitalsSensorDescription(
         key="pod_energy_remaining",

@@ -48,6 +48,11 @@ class PyPowerwallOperationMode(PyPowerwallEntity, SelectEntity):
             mode = op.get("real_mode")
             if mode in OPERATION_MODES:
                 return mode
+        control_mode = self.coordinator.data.get("control_mode")
+        if control_mode and isinstance(control_mode, dict):
+            mode = control_mode.get("mode")
+            if mode in OPERATION_MODES:
+                return mode
         return None
 
     async def async_select_option(self, option: str) -> None:
