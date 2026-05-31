@@ -16,6 +16,7 @@ from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
 from .entity import (
     PyPowerwallEntity,
+    build_alerts_by_source,
     build_block_by_serial,
     build_device_labels,
     parse_pod_data,
@@ -252,23 +253,23 @@ class PyPowerwallAlertsActive(PyPowerwallEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         try:
-            for val in (self.coordinator.data.get("vitals") or {}).values():
-                if isinstance(val, dict) and val.get("alerts"):
-                    return True
-            return False
+            return any(build_alerts_by_source(self.coordinator.data).values())
         except (KeyError, TypeError):
             return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         try:
-            all_alerts: list[str] = []
-            by_device: dict[str, list[str]] = {}
-            for key, val in (self.coordinator.data.get("vitals") or {}).items():
-                if isinstance(val, dict) and val.get("alerts"):
-                    by_device[key] = val["alerts"]
-                    all_alerts.extend(val["alerts"])
-            return {"total": len(all_alerts), "by_device": by_device}
+            by_device = {
+                source: sorted(alerts)
+                for source, alerts in build_alerts_by_source(
+                    self.coordinator.data
+                ).items()
+            }
+            return {
+                "total": sum(len(alerts) for alerts in by_device.values()),
+                "by_device": by_device,
+            }
         except (KeyError, TypeError):
             return {}
 

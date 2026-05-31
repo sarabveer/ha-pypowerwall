@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .data import PyPowerwallConfigEntry
-from .entity import PyPowerwallEntity
+from .entity import PyPowerwallEntity, build_alerts_by_source
 
 EVENT_ALERT_FIRED = "alert_fired"
 EVENT_ALERT_CLEARED = "alert_cleared"
@@ -36,19 +36,14 @@ class PyPowerwallAlertEvent(PyPowerwallEntity, EventEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Diff current vs previous alerts and fire events for changes."""
-        vitals = self.coordinator.data.get("vitals") or {}
-
-        current_alerts: dict[str, set[str]] = {}
-        for key, val in vitals.items():
-            if isinstance(val, dict) and val.get("alerts"):
-                current_alerts[key] = set(val["alerts"])
+        current_alerts = build_alerts_by_source(self.coordinator.data)
 
         if self._previous_alerts is not None:
             all_keys = set(self._previous_alerts) | set(current_alerts)
             for key in sorted(all_keys):
                 prev = self._previous_alerts.get(key, set())
                 curr = current_alerts.get(key, set())
-                device_type = key.split("--")[0]
+                device_type = key.split("--")[0] if "--" in key else key
 
                 for alert in sorted(curr - prev):
                     self._trigger_event(

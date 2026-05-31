@@ -30,6 +30,7 @@ from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
 from .entity import (
     PyPowerwallEntity,
+    build_alerts_by_source,
     build_block_by_serial,
     build_device_labels,
     clamp_percent,
@@ -191,9 +192,7 @@ MAIN_SENSORS: tuple[PyPowerwallSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: sum(
-            len(v.get("alerts", []))
-            for v in (d.get("vitals") or {}).values()
-            if isinstance(v, dict)
+            len(alerts) for alerts in build_alerts_by_source(d).values()
         ),
     ),
     PyPowerwallSensorDescription(
@@ -201,12 +200,13 @@ MAIN_SENSORS: tuple[PyPowerwallSensorDescription, ...] = (
         translation_key="active_alerts",
         icon="mdi:alert-circle-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda d: ", ".join(sorted({
-            alert
-            for v in (d.get("vitals") or {}).values()
-            if isinstance(v, dict)
-            for alert in v.get("alerts", [])
-        })) or "None",
+        value_fn=lambda d: ", ".join(
+            sorted({
+                alert
+                for alerts in build_alerts_by_source(d).values()
+                for alert in alerts
+            })
+        ) or "None",
     ),
     # Troubleshooting
     PyPowerwallSensorDescription(
@@ -659,10 +659,12 @@ class PyPowerwallSensor(PyPowerwallEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         if self.entity_description.key == "alert_count":
             try:
-                breakdown: dict[str, list[str]] = {}
-                for key, val in (self.coordinator.data.get("vitals") or {}).items():
-                    if isinstance(val, dict) and val.get("alerts"):
-                        breakdown[key] = val["alerts"]
+                breakdown = {
+                    source: sorted(alerts)
+                    for source, alerts in build_alerts_by_source(
+                        self.coordinator.data
+                    ).items()
+                }
                 return {"alerts_by_device": breakdown}
             except (KeyError, TypeError):
                 return None

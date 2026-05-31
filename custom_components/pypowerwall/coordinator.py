@@ -61,6 +61,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 pod,
                 troubleshooting,
                 stats,
+                alerts,
             ) = await asyncio.gather(
                 # Required endpoints
                 self._get("/aggregates"),
@@ -76,6 +77,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._get_optional("/pod"),
                 self._get_optional("/api/troubleshooting/problems"),
                 self._get_optional("/stats"),
+                self._get_optional("/pw/alerts"),
             )
             (
                 control_reserve,
@@ -105,8 +107,9 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "system_status": system_status or {},
             "sitemaster": sitemaster or {},
             "pod": pod,
-            "troubleshooting": troubleshooting,
+            "troubleshooting": self._normalize_troubleshooting(troubleshooting),
             "stats": stats,
+            "alerts": alerts,
             "control_reserve": control_reserve,
             "control_mode": control_mode,
             "control_grid_charging": control_grid_charging,
@@ -166,6 +169,16 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def has_control_secret(self) -> bool:
         """Return True if a control secret is configured."""
         return bool(self._control_secret)
+
+    @staticmethod
+    def _normalize_troubleshooting(data: Any) -> list[Any] | None:
+        """Normalize troubleshooting payloads across proxy versions."""
+        if data is None:
+            return None
+        if isinstance(data, dict):
+            problems = data.get("problems")
+            return problems if isinstance(problems, list) else []
+        return data if isinstance(data, list) else []
 
     async def _async_get_control_state(self) -> tuple[Any, Any, Any, Any, Any]:
         """Fetch control state endpoints when control is configured."""

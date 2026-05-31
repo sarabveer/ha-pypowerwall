@@ -19,6 +19,30 @@ def raw_percent_to_app_percent(value: float) -> float:
     return clamp_percent((value - 5) / 0.95)
 
 
+def build_alerts_by_source(coordinator_data: dict[str, Any]) -> dict[str, set[str]]:
+    """Return current alerts grouped by source.
+
+    Prefer per-device vitals alerts when available. Fall back to pypowerwall's
+    normalized alerts helper, which also covers grid-status and solar fallback
+    alerts on systems that don't expose vitals.
+    """
+    alerts_by_source: dict[str, set[str]] = {}
+    for key, val in (coordinator_data.get("vitals") or {}).items():
+        if isinstance(val, dict) and val.get("alerts"):
+            alerts_by_source[key] = {str(alert) for alert in val["alerts"]}
+
+    if alerts_by_source:
+        return alerts_by_source
+
+    alerts = coordinator_data.get("alerts")
+    if isinstance(alerts, dict):
+        alerts = alerts.get("alerts")
+    if isinstance(alerts, list) and alerts:
+        alerts_by_source["pypowerwall"] = {str(alert) for alert in alerts}
+
+    return alerts_by_source
+
+
 class PyPowerwallEntity(CoordinatorEntity[PyPowerwallCoordinator]):
     """Base entity for PyPowerwall integration."""
 
