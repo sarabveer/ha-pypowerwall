@@ -28,7 +28,14 @@ from homeassistant.helpers.typing import StateType
 from .const import DOMAIN
 from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
-from .entity import PyPowerwallEntity, build_block_by_serial, build_device_labels, parse_vitals_key
+from .entity import (
+    PyPowerwallEntity,
+    build_block_by_serial,
+    build_device_labels,
+    clamp_percent,
+    parse_vitals_key,
+    raw_percent_to_app_percent,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +64,17 @@ def _vitals_frequency(d: dict) -> float | None:
     for key, val in (d.get("vitals") or {}).items():
         if key.startswith("PVAC"):
             return val.get("PVAC_Fout")
+    return None
+
+
+def _battery_level(d: dict) -> float | None:
+    scaled = d.get("soe", {}).get("percentage")
+    if scaled is not None:
+        return round(clamp_percent(float(scaled)), 1)
+
+    raw = d.get("json", {}).get("soe")
+    if raw is not None:
+        return round(raw_percent_to_app_percent(float(raw)), 1)
     return None
 
 
@@ -121,9 +139,7 @@ MAIN_SENSORS: tuple[PyPowerwallSensorDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
-        value_fn=lambda d: round(d["json"]["soe"], 1)
-        if d["json"].get("soe") is not None
-        else None,
+        value_fn=_battery_level,
     ),
     PyPowerwallSensorDescription(
         key="battery_reserve",

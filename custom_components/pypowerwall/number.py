@@ -8,7 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import PyPowerwallCoordinator
 from .data import PyPowerwallConfigEntry
-from .entity import PyPowerwallEntity
+from .entity import PyPowerwallEntity, clamp_percent, raw_percent_to_app_percent
 
 
 async def async_setup_entry(
@@ -42,29 +42,33 @@ class PyPowerwallBackupReserve(PyPowerwallEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         d = self.coordinator.data
-        # Prefer /api/operation (actual setting), fall back to /json reserve
+        # /api/operation reports raw physical reserve. HA should match the Tesla app.
         op = d.get("operation")
         if op and isinstance(op, dict):
             val = op.get("backup_reserve_percent")
             if val is not None:
-                return max(0.0, min(100.0, float(val)))
+                return raw_percent_to_app_percent(float(val))
+
+        # /control/reserve and /json come from pypowerwall.get_reserve(), which
+        # already returns Tesla app scale by default.
         reserve = d.get("control_reserve")
         if reserve and isinstance(reserve, dict):
             val = reserve.get("reserve")
             if val is not None:
-                return max(0.0, min(100.0, float(val)))
+                return clamp_percent(float(val))
         val = d.get("json", {}).get("reserve")
         if val is not None:
-            return max(0.0, min(100.0, float(val)))
+            return clamp_percent(float(val))
         return None
 
     async def async_set_native_value(self, value: float) -> None:
+        app_percent = int(round(clamp_percent(value)))
         success = await self.coordinator.send_command(
-            "/control/reserve", int(value)
+            "/control/reserve", app_percent
         )
         if not success:
             raise HomeAssistantError(
-                f"Failed to set backup reserve to {value}%"
+                f"Failed to set backup reserve to {app_percent}%"
             )
         await self.coordinator.async_request_refresh()
 

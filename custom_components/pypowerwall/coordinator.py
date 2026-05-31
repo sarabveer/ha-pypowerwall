@@ -53,6 +53,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 vitals,
                 health,
                 data,
+                soe,
                 version_info,
                 operation,
                 system_status,
@@ -67,6 +68,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._get("/health"),
                 # Optional endpoints
                 self._get_optional("/json"),
+                self._get_optional("/api/system_status/soe"),
                 self._get_optional("/version"),
                 self._get_optional("/api/operation"),
                 self._get_optional("/api/system_status"),
@@ -97,6 +99,7 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "aggregates": aggregates or {},
             "vitals": vitals or {},
             "health": health or {},
+            "soe": soe or {},
             "version_info": version_info or {},
             "operation": operation,
             "system_status": system_status or {},
@@ -148,7 +151,13 @@ class PyPowerwallCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _LOGGER.debug("Optional endpoint %s returned 404", url)
                     return None
                 resp.raise_for_status()
-                return await resp.json(content_type=None)
+                data = await resp.json(content_type=None)
+                if isinstance(data, dict) and (
+                    "error" in data or "unauthorized" in data
+                ):
+                    _LOGGER.debug("Optional endpoint %s returned error: %s", url, data)
+                    return None
+                return data
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
             _LOGGER.debug("Optional endpoint %s failed: %s", url, err)
             return None

@@ -9,6 +9,16 @@ from .const import DOMAIN
 from .coordinator import PyPowerwallCoordinator
 
 
+def clamp_percent(value: float) -> float:
+    """Clamp a percentage value to Home Assistant's valid percentage range."""
+    return max(0.0, min(100.0, value))
+
+
+def raw_percent_to_app_percent(value: float) -> float:
+    """Convert pypowerwall raw physical percent to Tesla app percent."""
+    return clamp_percent((value - 5) / 0.95)
+
+
 class PyPowerwallEntity(CoordinatorEntity[PyPowerwallCoordinator]):
     """Base entity for PyPowerwall integration."""
 
