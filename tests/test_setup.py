@@ -26,6 +26,59 @@ CONNECT_TARGET = "custom_components.pypowerwall.coordinator.pypowerwall.Powerwal
 ENTRY_DATA = {CONF_CONN_TYPE: CONN_TYPE_TEDAPI, "host": "192.168.91.1", CONF_GW_PWD: "secret"}
 
 
+@pytest.mark.parametrize("conn_type", [CONN_TYPE_TEDAPI_V1R, CONN_TYPE_TEDAPI, CONN_TYPE_CLOUD])
+async def test_max_backup_sensor_is_v1r_only(hass: HomeAssistant, conn_type: str) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=DIN,
+        data={
+            **ENTRY_DATA,
+            CONF_CONN_TYPE: conn_type,
+            CONF_RSA_KEY_PATH: "/config/rsa.pem",
+            CONF_AUTHPATH: "/config/auth",
+        },
+    )
+    entry.add_to_hass(hass)
+    pw = make_fake_pw(backup_events={"manual_backup": {"active": True}})
+    with patch(CONNECT_TARGET, return_value=pw):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{DIN}_max_backup_active"
+    )
+    if conn_type != CONN_TYPE_TEDAPI_V1R:
+        assert entity_id is None
+        pw.get_backup_events.assert_not_called()
+        return
+
+    assert hass.states.get(entity_id).state == "on"
+    assert hass.states.get(entity_id).attributes["backup_events"] is None
+    scheduled = [
+        {
+            "id": "event-1",
+            "name": "Test event",
+            "start_time": 123,
+            "duration_seconds": 3600,
+            "priority": 5,
+        }
+    ]
+    for events, expected in [
+        ({"manual_backup": None, "backup_events": scheduled}, "off"),
+        ({"manual_backup": None, "backup_events": []}, "off"),
+        ({"manual_backup": None, "backup_events": scheduled}, "off"),
+        (None, "unknown"),
+        ({"manual_backup": {"active": True}}, "on"),
+    ]:
+        pw.get_backup_events.return_value = events
+        await entry.runtime_data.async_refresh()
+        await hass.async_block_till_done()
+        assert hass.states.get(entity_id).state == expected
+        assert hass.states.get(entity_id).attributes["backup_events"] == (
+            events.get("backup_events") if events else None
+        )
+
+
 def _entity_state(hass: HomeAssistant, platform: str, unique_id: str):
     registry = er.async_get(hass)
     entity_id = registry.async_get_entity_id(platform, DOMAIN, f"{DIN}_{unique_id}")
